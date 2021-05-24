@@ -103,3 +103,12 @@ func StrToCode(status string) StatusCode {
 	}
 	return Unknown
 }
+
+func HttpToCode(httpCode int) StatusCode {
+	for i, value := range httpList {
+		if httpCode == value {
+			return StatusCode(i)
+		}
+	}
+	return Unknown
+}
