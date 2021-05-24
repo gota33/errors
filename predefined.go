@@ -1,6 +1,6 @@
 package errors
 
-func predefined(message string, code StatusCode, details ...Detail) error {
+func predefined(message string, code StatusCode, details ...Any) error {
 	return &annotated{
 		cause:   code,
 		code:    code,

@@ -103,8 +103,12 @@ func TestDecode(t *testing.T) {
 func show(t *testing.T, _err error) {
 	t.Helper()
 
-	t.Logf("%v", _err)
-	t.Logf("%+v", _err)
+	_err = Flatten(_err)
+
+	t.Logf("code: %v", Code(_err))
+	t.Logf("details: %d", len(Details(_err)))
+	t.Logf("short: %v", _err)
+	t.Logf("full message:\n%+v", _err)
 
 	data, err := Encode(_err)
 	if err != nil {

@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,31 +12,11 @@ type annotated struct {
 	cause   error
 	code    StatusCode
 	message string
-	details []Detail
+	details []Any
 }
 
 func (e annotated) Unwrap() error { return e.cause }
-
-func (e annotated) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Code    int      `json:"code"`
-		Message string   `json:"message,omitempty"`
-		Status  string   `json:"status"`
-		Details []Detail `json:"details,omitempty"`
-	}{
-		Code:    e.code.HttpCode(),
-		Message: e.Error(),
-		Status:  e.code.String(),
-		Details: e.details,
-	})
-}
-
-func (e annotated) Error() string {
-	if e.message == "" {
-		return e.cause.Error()
-	}
-	return e.message + ": " + e.cause.Error()
-}
+func (e annotated) Error() string { return e.message }
 
 func (e annotated) Format(f fmt.State, verb rune) {
 	switch verb {
@@ -46,7 +25,10 @@ func (e annotated) Format(f fmt.State, verb rune) {
 			_, _ = fmt.Fprintf(f, "status: %q\n", e.code.Error())
 			_, _ = fmt.Fprintf(f, "message: %q\n", e.Error())
 			for i, detail := range e.details {
-				_, _ = fmt.Fprintf(f, "detail[%d]:\n%+v\n", i, detail)
+				_, _ = fmt.Fprintf(f, "detail[%d]:\n", i)
+				str := fmt.Sprintf("\t%+v", detail)
+				str = strings.ReplaceAll(str, "\n", "\n\t")
+				_, _ = io.WriteString(f, str[0:len(str)-1])
 			}
 			return
 		}
@@ -56,6 +38,20 @@ func (e annotated) Format(f fmt.State, verb rune) {
 	case 'q':
 		_, _ = fmt.Fprintf(f, "%q", e.Error())
 	}
+}
+
+func Annotate(cause error, annotations ...Annotation) error {
+	err, ok := cause.(*annotated)
+	if !ok {
+		err = &annotated{cause: cause}
+	}
+
+	WithMessage(cause.Error())(err)
+
+	for _, annotation := range annotations {
+		annotation(err)
+	}
+	return err
 }
 
 type Annotation func(err *annotated)
@@ -74,105 +70,75 @@ func WithMessage(message string) Annotation {
 	}
 }
 
-func WithDetail(details ...Detail) Annotation {
+func WithDetail(details ...Any) Annotation {
 	return func(err *annotated) { err.details = append(err.details, details...) }
 }
 
 func WithStack() Annotation {
-	return func(err *annotated) {
-		entries := strings.Split(string(debug.Stack()), "\n")
-		detail := DebugInfo{StackEntries: entries}
-		err.details = append(err.details, detail)
-	}
+	entries := strings.Split(string(debug.Stack()), "\n")
+	detail := DebugInfo{StackEntries: entries}
+	return WithDetail(detail)
 }
 
 func WithRequestInfo(requestId, servingData string) Annotation {
-	return func(err *annotated) {
-		err.details = append(err.details, RequestInfo{requestId, servingData})
-	}
+	return WithDetail(RequestInfo{requestId, servingData})
 }
 
 func WithLocalizedMessage(local string, message string) Annotation {
-	return func(err *annotated) {
-		err.details = append(err.details, LocalizedMessage{local, message})
-	}
+	return WithDetail(LocalizedMessage{local, message})
 }
 
 func WithHelp(links ...Link) Annotation {
-	return func(err *annotated) {
-		err.details = append(err.details, Help{links})
-	}
+	return WithDetail(Help{links})
 }
 
-func Annotate(cause error, annotations ...Annotation) error {
-	err, ok := cause.(*annotated)
-	if !ok {
-		err = &annotated{cause: cause}
+func Code(err error) StatusCode {
+	if err == nil {
+		return OK
 	}
-	for _, annotation := range annotations {
-		annotation(err)
+
+	var a *annotated
+	if errors.As(err, &a) {
+		return a.code
 	}
-	return err
+	return Unknown
 }
 
-func Details(err error) (details []Detail) {
-	if a, ok := err.(*annotated); ok {
+func Details(err error) []Any {
+	if err == nil {
+		return nil
+	}
+
+	err = Flatten(err)
+
+	var a *annotated
+	if errors.As(err, &a) {
 		return a.details
 	}
-	return
+	return nil
 }
 
-type encoded struct {
-	Code    int             `json:"code"`
-	Message string          `json:"message,omitempty"`
-	Status  string          `json:"status"`
-	Details json.RawMessage `json:"details,omitempty"`
-}
-
-func Encode(err error) (data []byte, _err error) {
-	var o struct {
-		Code    int      `json:"code"`
-		Message string   `json:"message,omitempty"`
-		Status  string   `json:"status"`
-		Details []Detail `json:"details,omitempty"`
-	}
-
-	cur := err
+func Flatten(err error) error {
+	var (
+		o   annotated
+		cur = err
+	)
 	for cur != nil {
 		if a, ok := cur.(*annotated); ok {
-			if o.Code == 0 {
-				o.Code = a.code.HttpCode()
-				o.Status = a.code.String()
+			if o.code == 0 {
+				o.code = a.code
 			}
-			o.Details = append(o.Details, a.details...)
+			o.details = append(o.details, a.details...)
 		}
-		if o.Message != "" {
-			o.Message += ": "
+		if o.message == "" {
+			o.message = cur.Error()
 		}
-		o.Message += cur.Error()
+		o.cause = cur
 		cur = errors.Unwrap(cur)
 	}
-
-	return json.Marshal(o)
-}
-
-func Decode(body io.Reader) (err error) {
-	var msg encoded
-	if err = json.NewDecoder(body).Decode(&msg); err != nil {
-		return
+	if o.cause == nil {
+		return nil
 	}
 
-	details, err := decodeDetails(msg.Details)
-	if err != nil {
-		return
-	}
-
-	code := StrToCode(msg.Status)
-
-	return &annotated{
-		cause:   code,
-		code:    code,
-		message: msg.Message,
-		details: details,
-	}
+	return &o
 }
