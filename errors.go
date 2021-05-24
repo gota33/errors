@@ -60,6 +60,10 @@ func WithCode(code StatusCode) Annotation {
 	return func(err *annotated) { err.code = code }
 }
 
+func WithHttpCode(httpCode int) Annotation {
+	return func(err *annotated) { err.code = HttpToCode(httpCode) }
+}
+
 func WithMessage(message string) Annotation {
 	return func(err *annotated) {
 		if err.message == "" {
