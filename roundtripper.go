@@ -1,8 +1,8 @@
 package errors
 
 import (
-	"fmt"
-	"io/ioutil"
+	"bytes"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -41,17 +41,19 @@ func (e *RoundTripper) onNetworkError(req *http.Request, err error) error {
 func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, err error) error {
 	defer func() { _ = resp.Body.Close() }()
 
-	if e.isJson(resp) {
-		return Decode(resp.Body)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(resp.Body); err != nil {
 		return e.onNetworkError(req, err)
 	}
 
+	if e.isJson(resp) {
+		if err = Decode(&buf); err != nil {
+			return e.onNetworkError(req, err)
+		}
+	}
+
 	return Annotate(
-		fmt.Errorf("%s", data),
+		errors.New(buf.String()),
 		WithHttpCode(resp.StatusCode))
 }
 
