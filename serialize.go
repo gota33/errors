@@ -25,46 +25,56 @@ func RegisterType(typeUrl string, provider func() Any) {
 	}
 }
 
-type encoded struct {
+type message struct {
+	Error messageBody `json:"error,omitempty"`
+}
+
+type messageBody struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Details []Any  `json:"details,omitempty"`
+}
+
+func Encode(err error) (data []byte, _err error) {
+	var body messageBody
+	if a, ok := Flatten(err).(*annotated); ok {
+		body.Code = a.code.HttpCode()
+		body.Status = a.code.String()
+		body.Message = a.message
+		body.Details = a.details
+	}
+	return json.Marshal(message{body})
+}
+
+type encodedMessage struct {
+	Error encodedBody `json:"error,omitempty"`
+}
+
+type encodedBody struct {
 	Code    int             `json:"code,omitempty"`
 	Message string          `json:"message,omitempty"`
 	Status  string          `json:"status,omitempty"`
 	Details json.RawMessage `json:"details,omitempty"`
 }
 
-func Encode(err error) (data []byte, _err error) {
-	var o struct {
-		Code    int    `json:"code,omitempty"`
-		Message string `json:"message,omitempty"`
-		Status  string `json:"status,omitempty"`
-		Details []Any  `json:"details,omitempty"`
-	}
-	if a, ok := Flatten(err).(*annotated); ok {
-		o.Code = a.code.HttpCode()
-		o.Status = a.code.String()
-		o.Message = a.message
-		o.Details = a.details
-	}
-	return json.Marshal(o)
-}
-
 func Decode(body io.Reader) (err error) {
-	var msg encoded
+	var msg encodedMessage
 	if err = json.NewDecoder(body).Decode(&msg); err != nil {
 		return
 	}
 
-	details, err := decodeDetails(msg.Details)
+	details, err := decodeDetails(msg.Error.Details)
 	if err != nil {
 		return
 	}
 
-	code := StrToCode(msg.Status)
+	code := StrToCode(msg.Error.Status)
 
 	return &annotated{
 		cause:   code,
 		code:    code,
-		message: msg.Message,
+		message: msg.Error.Message,
 		details: details,
 	}
 }
