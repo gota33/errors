@@ -3,7 +3,9 @@ package errors
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -35,7 +37,15 @@ func (e *RoundTripper) next(req *http.Request) (resp *http.Response, err error) 
 }
 
 func (e *RoundTripper) onNetworkError(req *http.Request, err error) error {
-	return Annotate(err, WithCode(Internal), WithMessage(req.URL.String()))
+	var (
+		annotations = []Annotation{WithCode(Internal)}
+		uErr        *url.Error
+	)
+	if !errors.As(err, &uErr) {
+		msg := fmt.Sprintf("%s %s", req.Method, req.URL)
+		annotations = append(annotations, WithMessage(msg))
+	}
+	return Annotate(err, WithCode(Internal))
 }
 
 func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, err error) error {
