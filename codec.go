@@ -17,7 +17,7 @@ var typeProvider = map[string]func() Any{
 	TypeUrlLocalizedMessage:    func() Any { return new(LocalizedMessage) },
 }
 
-func RegisterType(typeUrl string, provider func() Any) {
+func Register(typeUrl string, provider func() Any) {
 	if provider == nil {
 		delete(typeProvider, typeUrl)
 	} else {
@@ -36,15 +36,15 @@ type messageBody struct {
 	Details []Any  `json:"details,omitempty"`
 }
 
-func Encode(err error) (data []byte, _err error) {
+func Encode(w io.Writer, in error) error {
 	var body messageBody
-	if a, ok := Flatten(err).(*annotated); ok {
+	if a, ok := Flatten(in).(*annotated); ok {
 		body.Code = a.code.HttpCode()
 		body.Status = a.code.String()
 		body.Message = a.message
 		body.Details = a.details
 	}
-	return json.Marshal(message{body})
+	return json.NewEncoder(w).Encode(message{body})
 }
 
 type encodedMessage struct {
@@ -54,13 +54,13 @@ type encodedMessage struct {
 type encodedBody struct {
 	Code    int             `json:"code,omitempty"`
 	Message string          `json:"message,omitempty"`
-	Status  string          `json:"status,omitempty"`
+	Status  StatusCodeName  `json:"status,omitempty"`
 	Details json.RawMessage `json:"details,omitempty"`
 }
 
-func Decode(body io.Reader) (err error) {
+func Decode(r io.Reader) (err error) {
 	var msg encodedMessage
-	if err = json.NewDecoder(body).Decode(&msg); err != nil {
+	if err = json.NewDecoder(r).Decode(&msg); err != nil {
 		return
 	}
 
@@ -69,12 +69,13 @@ func Decode(body io.Reader) (err error) {
 		return
 	}
 
-	code := StrToCode(msg.Error.Status)
+	cause := msg.Error
+	code := cause.Status.StatusCode()
 
 	return &annotated{
 		cause:   code,
 		code:    code,
-		message: msg.Error.Message,
+		message: cause.Message,
 		details: details,
 	}
 }

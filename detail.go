@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime/debug"
+	"strings"
 )
 
 const (
@@ -38,17 +40,15 @@ type DebugInfo struct {
 	Detail       string   `json:"detail,omitempty"`
 }
 
-func (d DebugInfo) TypeUrl() string {
-	return TypeUrlDebugInfo
-}
-
-type debugInfo DebugInfo
+func (d DebugInfo) TypeUrl() string     { return TypeUrlDebugInfo }
+func (d DebugInfo) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d DebugInfo) MarshalJSON() ([]byte, error) {
+	type payload DebugInfo
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		debugInfo
-	}{d.TypeUrl(), debugInfo(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d DebugInfo) Format(f fmt.State, verb rune) {
@@ -78,17 +78,15 @@ type ResourceInfo struct {
 	Description  string `json:"description,omitempty"`
 }
 
-func (d ResourceInfo) TypeUrl() string {
-	return TypeUrlResourceInfo
-}
-
-type resourceInfo ResourceInfo
+func (d ResourceInfo) TypeUrl() string     { return TypeUrlResourceInfo }
+func (d ResourceInfo) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d ResourceInfo) MarshalJSON() ([]byte, error) {
+	type payload ResourceInfo
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		resourceInfo
-	}{d.TypeUrl(), resourceInfo(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d ResourceInfo) Format(f fmt.State, verb rune) {
@@ -119,17 +117,15 @@ type BadRequest struct {
 	FieldViolations []FieldViolation `json:"fieldViolations,omitempty"`
 }
 
-func (d BadRequest) TypeUrl() string {
-	return TypeUrlBadRequest
-}
-
-type badRequest BadRequest
+func (d BadRequest) TypeUrl() string     { return TypeUrlBadRequest }
+func (d BadRequest) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d BadRequest) MarshalJSON() ([]byte, error) {
+	type payload BadRequest
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		badRequest
-	}{d.TypeUrl(), badRequest(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d BadRequest) Format(f fmt.State, verb rune) {
@@ -159,17 +155,15 @@ type PreconditionFailure struct {
 	Violations []TypedViolation `json:"violations,omitempty"`
 }
 
-func (d PreconditionFailure) TypeUrl() string {
-	return TypeUrlPreconditionFailure
-}
-
-type preconditionFailure PreconditionFailure
+func (d PreconditionFailure) TypeUrl() string     { return TypeUrlPreconditionFailure }
+func (d PreconditionFailure) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d PreconditionFailure) MarshalJSON() ([]byte, error) {
+	type payload PreconditionFailure
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		preconditionFailure
-	}{d.TypeUrl(), preconditionFailure(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d PreconditionFailure) Format(f fmt.State, verb rune) {
@@ -195,17 +189,15 @@ type ErrorInfo struct {
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
-func (d ErrorInfo) TypeUrl() string {
-	return TypeUrlErrorInfo
-}
-
-type errorInfo ErrorInfo
+func (d ErrorInfo) TypeUrl() string     { return TypeUrlErrorInfo }
+func (d ErrorInfo) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d ErrorInfo) MarshalJSON() ([]byte, error) {
+	type payload ErrorInfo
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		errorInfo
-	}{d.TypeUrl(), errorInfo(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d ErrorInfo) Format(f fmt.State, verb rune) {
@@ -236,17 +228,15 @@ type QuotaFailure struct {
 	Violations []Violation `json:"violations,omitempty"`
 }
 
-func (d QuotaFailure) TypeUrl() string {
-	return TypeUrlQuotaFailure
-}
-
-type quotaFailure QuotaFailure
+func (d QuotaFailure) TypeUrl() string     { return TypeUrlQuotaFailure }
+func (d QuotaFailure) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d QuotaFailure) MarshalJSON() ([]byte, error) {
+	type payload QuotaFailure
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		quotaFailure
-	}{d.TypeUrl(), quotaFailure(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d QuotaFailure) Format(f fmt.State, verb rune) {
@@ -271,17 +261,15 @@ type RequestInfo struct {
 	ServingData string `json:"servingData,omitempty"`
 }
 
-func (d RequestInfo) TypeUrl() string {
-	return TypeUrlRequestInfo
-}
-
-type requestInfo RequestInfo
+func (d RequestInfo) TypeUrl() string     { return TypeUrlRequestInfo }
+func (d RequestInfo) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d RequestInfo) MarshalJSON() ([]byte, error) {
+	type payload RequestInfo
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		requestInfo
-	}{d.TypeUrl(), requestInfo(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d RequestInfo) Format(f fmt.State, verb rune) {
@@ -310,17 +298,15 @@ type Help struct {
 	Links []Link `json:"links,omitempty"`
 }
 
-func (d Help) TypeUrl() string {
-	return TypeUrlHelp
-}
-
-type help Help
+func (d Help) TypeUrl() string     { return TypeUrlHelp }
+func (d Help) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d Help) MarshalJSON() ([]byte, error) {
+	type payload Help
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		help
-	}{d.TypeUrl(), help(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d Help) Format(f fmt.State, verb rune) {
@@ -345,17 +331,15 @@ type LocalizedMessage struct {
 	Message string `json:"message,omitempty"`
 }
 
-func (d LocalizedMessage) TypeUrl() string {
-	return TypeUrlLocalizedMessage
-}
-
-type localizedMessage LocalizedMessage
+func (d LocalizedMessage) TypeUrl() string     { return TypeUrlLocalizedMessage }
+func (d LocalizedMessage) Annotate(m Modifier) { m.AppendDetails(d) }
 
 func (d LocalizedMessage) MarshalJSON() ([]byte, error) {
+	type payload LocalizedMessage
 	return json.Marshal(struct {
 		Type string `json:"@type"`
-		localizedMessage
-	}{d.TypeUrl(), localizedMessage(d)})
+		payload
+	}{d.TypeUrl(), payload(d)})
 }
 
 func (d LocalizedMessage) Format(f fmt.State, verb rune) {
@@ -373,4 +357,11 @@ func (d LocalizedMessage) Format(f fmt.State, verb rune) {
 	case 'q':
 		_, _ = fmt.Fprintf(f, "%q", d.Message)
 	}
+}
+
+type StackTrace string
+
+func (s StackTrace) Annotate(m Modifier) {
+	entries := strings.Split(string(debug.Stack()), "\n")
+	m.AppendDetails(DebugInfo{entries, string(s)})
 }

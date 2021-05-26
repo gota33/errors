@@ -15,7 +15,7 @@ type RoundTripper struct {
 
 func (e *RoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if resp, err = e.next(req); err != nil {
-		err = e.onNetworkError(req, err)
+		err = e.onInternalError(req, err)
 		return
 	}
 
@@ -36,16 +36,16 @@ func (e *RoundTripper) next(req *http.Request) (resp *http.Response, err error) 
 	return rt.RoundTrip(req)
 }
 
-func (e *RoundTripper) onNetworkError(req *http.Request, err error) error {
+func (e *RoundTripper) onInternalError(req *http.Request, err error) error {
 	var (
-		annotations = []Annotation{WithCode(Internal)}
+		annotations = []Annotation{Internal}
 		uErr        *url.Error
 	)
 	if !errors.As(err, &uErr) {
 		msg := fmt.Sprintf("%s %s", req.Method, req.URL)
-		annotations = append(annotations, WithMessage(msg))
+		annotations = append(annotations, Message(msg))
 	}
-	return Annotate(err, WithCode(Internal))
+	return Annotate(err, annotations...)
 }
 
 func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, err error) error {
@@ -53,22 +53,22 @@ func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, e
 
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
-		return e.onNetworkError(req, err)
+		return e.onInternalError(req, err)
 	}
 
 	if e.isJson(resp) {
 		if err = Decode(&buf); err != nil {
-			return e.onNetworkError(req, err)
+			return e.onInternalError(req, err)
 		}
 	}
 
 	return Annotate(
 		errors.New(buf.String()),
-		WithHttpCode(resp.StatusCode))
+		HttpStatusCode(resp.StatusCode))
 }
 
-func (e *RoundTripper) isSuccess(resp *http.Response) bool {
-	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusBadRequest
+func (e *RoundTripper) isSuccess(r *http.Response) bool {
+	return r.StatusCode > 199 && r.StatusCode < 300
 }
 
 func (e *RoundTripper) isJson(resp *http.Response) bool {

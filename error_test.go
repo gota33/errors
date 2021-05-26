@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,18 +10,11 @@ import (
 )
 
 func TestA(t *testing.T) {
-	cause := sql.ErrNoRows
-
-	detail := DebugInfo{
-		StackEntries: []string{"app.invoke", "dao.query"},
-		Detail:       "something wrong",
-	}
-
-	_err := Annotate(cause,
-		WithCode(NotFound),
-		WithMessage("query user info"),
-		WithDetail(detail),
-		WithStack())
+	_err := Annotate(sql.ErrNoRows,
+		NotFound,
+		Message("query user info"),
+		DebugInfo{[]string{"app.invoke", "dao.query"}, "app a"},
+		StackTrace("test a"))
 
 	show(t, _err)
 
@@ -45,16 +39,20 @@ func TestPredefined(t *testing.T) {
 
 	t.Run("bad request", func(t *testing.T) {
 		err := NewBadRequest("dao.UpdateItem",
-			FieldViolation{"username", "is required"},
-			FieldViolation{"email", "is invalid"},
+			BadRequest{[]FieldViolation{
+				{"username", "is required"},
+				{"email", "is invalid"},
+			}},
 		)
 		show(t, err)
 	})
 
 	t.Run("failed precondition", func(t *testing.T) {
 		err := NewFailedPrecondition("app.any",
-			TypedViolation{"TOC", "redis03", "no memory"},
-			TypedViolation{"TOC", "redis03", "no cpu"},
+			PreconditionFailure{[]TypedViolation{
+				{"TOC", "redis03", "no memory"},
+				{"TOC", "redis03", "no cpu"},
+			}},
 		)
 		show(t, err)
 	})
@@ -75,18 +73,18 @@ func TestPredefined(t *testing.T) {
 
 	t.Run("resource exhausted", func(t *testing.T) {
 		err := NewResourceExhausted("app.any",
-			Violation{"rds", "concurrent max limit 15"})
+			QuotaFailure{[]Violation{{"rds", "concurrent max limit 15"}}})
 		show(t, err)
 	})
 
 	t.Run("resource exhausted", func(t *testing.T) {
 		err := NewResourceExhausted("app.any",
-			Violation{"rds", "concurrent max limit 15"})
+			QuotaFailure{[]Violation{{"rds", "concurrent max limit 15"}}})
 
 		err = Annotate(err,
-			WithRequestInfo("abd123", ""),
-			WithLocalizedMessage("zh-CN", "中文提示"),
-			WithHelp(Link{"about", "https://blog.igota.net/about"}),
+			RequestInfo{"abd123", ""},
+			LocalizedMessage{"zh-CN", "中文提示"},
+			Help{[]Link{{"about", "https://blog.igota.net/about"}}},
 		)
 
 		show(t, err)
@@ -94,7 +92,7 @@ func TestPredefined(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	const raw = `{"code":404,"message":"query user info: sql: no rows in result set","status":"NOT_FOUND","details":[{"@type":"type.googleapis.com/google.rpc.DebugInfo","stackEntries":["app.invoke","dao.query"],"detail":"something wrong"},{"@type":"type.googleapis.com/google.rpc.DebugInfo","stackEntries":["goroutine 6 [running]:","runtime/debug.Stack(0x1, 0xc00005de38, 0x107c03f)","\tC:/code/go/src/runtime/debug/stack.go:24 +0xa5","github.com/gota33/errors.WithStackTrace.func1(0xc00005e840)","\tC:/workspace/github/gota33/errors/errors.go:61 +0x3b","github.com/gota33/errors.Annotate(0x1115260, 0xc000050c50, 0xc00005df00, 0x4, 0x4, 0x112e7d4, 0xf)","\tC:/workspace/github/gota33/errors/errors.go:73 +0x62","github.com/gota33/errors.TestA(0xc000045080)","\tC:/workspace/github/gota33/errors/error_test.go:18 +0x251","testing.tRunner(0xc000045080, 0x10e7320)","\tC:/code/go/src/testing/testing.go:1194 +0xef","created by testing.(*T).Run","\tC:/code/go/src/testing/testing.go:1239 +0x2b3",""]}]}`
+	const raw = `{"error":{"code":404,"message":"query user info: sql: no rows in result set","status":"NOT_FOUND","details":[{"@type":"type.googleapis.com/google.rpc.DebugInfo","stackEntries":["app.invoke","dao.query"],"detail":"app a"},{"@type":"type.googleapis.com/google.rpc.DebugInfo","stackEntries":["goroutine 6 [running]:","runtime/debug.Stack(0x1, 0x1, 0x1)","\tC:/code/go/src/runtime/debug/stack.go:24 +0xa5","github.com/gota33/errors.StackTrace.Annotate(0x10d48f6, 0x6, 0x111bd50, 0xc00005e840)","\tC:/workspace/github/gota33/errors/detail.go:365 +0x2d","github.com/gota33/errors.Annotate(0x11199a0, 0xc000050c50, 0xc00005df30, 0x4, 0x4, 0x1205ee0, 0xfb8a46)","\tC:/workspace/github/gota33/errors/errors.go:77 +0xbc","github.com/gota33/errors.TestA(0xc000045080)","\tC:/workspace/github/gota33/errors/error_test.go:12 +0x19e","testing.tRunner(0xc000045080, 0x10e9350)","\tC:/code/go/src/testing/testing.go:1194 +0xef","created by testing.(*T).Run","\tC:/code/go/src/testing/testing.go:1239 +0x2b3",""],"detail":"test a"}]}}`
 
 	err := Decode(strings.NewReader(raw))
 	show(t, err)
@@ -103,17 +101,14 @@ func TestDecode(t *testing.T) {
 func show(t *testing.T, _err error) {
 	t.Helper()
 
-	_err = Flatten(_err)
-
 	t.Logf("code: %v", Code(_err))
 	t.Logf("details: %d", len(Details(_err)))
 	t.Logf("short: %v", _err)
 	t.Logf("full message:\n%+v", _err)
 
-	data, err := Encode(_err)
-	if err != nil {
+	var buf bytes.Buffer
+	if err := Encode(&buf, _err); err != nil {
 		t.Fatal(err)
 	}
-
-	t.Log(string(data))
+	t.Log(buf.String())
 }

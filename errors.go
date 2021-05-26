@@ -1,18 +1,44 @@
 package errors
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"runtime/debug"
 	"strings"
 )
+
+type Modifier interface {
+	SetCode(code StatusCode)
+	AppendMessage(msg string)
+	AppendDetails(details ...Any)
+}
+
+type Annotation interface {
+	Annotate(m Modifier)
+}
 
 type annotated struct {
 	cause   error
 	code    StatusCode
 	message string
 	details []Any
+}
+
+func (e *annotated) SetCode(code StatusCode) {
+	e.code = code
+}
+
+func (e *annotated) AppendDetails(details ...Any) {
+	e.details = append(e.details, details...)
+}
+
+func (e *annotated) AppendMessage(msg string) {
+	if e.message == "" {
+		e.message = msg
+	} else {
+		e.message = msg + ": " + e.message
+	}
 }
 
 func (e annotated) Unwrap() error { return e.cause }
@@ -46,54 +72,18 @@ func Annotate(cause error, annotations ...Annotation) error {
 		err = &annotated{cause: cause}
 	}
 
-	WithMessage(cause.Error())(err)
+	Message(cause.Error()).Annotate(err)
 
 	for _, annotation := range annotations {
-		annotation(err)
+		annotation.Annotate(err)
 	}
 	return err
 }
 
-type Annotation func(err *annotated)
+type Message string
 
-func WithCode(code StatusCode) Annotation {
-	return func(err *annotated) { err.code = code }
-}
-
-func WithHttpCode(httpCode int) Annotation {
-	return func(err *annotated) { err.code = HttpToCode(httpCode) }
-}
-
-func WithMessage(message string) Annotation {
-	return func(err *annotated) {
-		if err.message == "" {
-			err.message = message
-		} else {
-			err.message = message + ": " + err.message
-		}
-	}
-}
-
-func WithDetail(details ...Any) Annotation {
-	return func(err *annotated) { err.details = append(err.details, details...) }
-}
-
-func WithStack() Annotation {
-	entries := strings.Split(string(debug.Stack()), "\n")
-	detail := DebugInfo{StackEntries: entries}
-	return WithDetail(detail)
-}
-
-func WithRequestInfo(requestId, servingData string) Annotation {
-	return WithDetail(RequestInfo{requestId, servingData})
-}
-
-func WithLocalizedMessage(local string, message string) Annotation {
-	return WithDetail(LocalizedMessage{local, message})
-}
-
-func WithHelp(links ...Link) Annotation {
-	return WithDetail(Help{links})
+func (a Message) Annotate(m Modifier) {
+	m.AppendMessage(string(a))
 }
 
 func Code(err error) StatusCode {
@@ -108,41 +98,66 @@ func Code(err error) StatusCode {
 	return Unknown
 }
 
-func Details(err error) []Any {
-	if err == nil {
-		return nil
-	}
-
-	err = Flatten(err)
-
-	var a *annotated
-	if errors.As(err, &a) {
-		return a.details
-	}
-	return nil
+func Details(err error) (out []Any) {
+	travel(err, visitor{
+		OnDetails: func(details []Any) {
+			out = append(out, details...)
+		},
+	})
+	return
 }
 
 func Flatten(err error) error {
-	var (
-		o   annotated
-		cur = err
-	)
+	var o annotated
+
+	travel(err, visitor{
+		OnCode: func(code StatusCode) {
+			if o.code == OK {
+				o.code = code
+			}
+		},
+		OnDetails: func(details []Any) {
+			o.details = append(o.details, details...)
+		},
+		OnError: func(cur error) {
+			if o.message == "" {
+				o.message = cur.Error()
+			}
+			o.cause = cur
+		},
+	})
+
+	if o.code == OK {
+		switch o.cause {
+		case context.Canceled:
+			o.code = Cancelled
+		case context.DeadlineExceeded:
+			o.code = DeadlineExceeded
+		}
+	}
+	return &o
+}
+
+type visitor struct {
+	OnCode    func(code StatusCode)
+	OnDetails func(details []Any)
+	OnError   func(err error)
+}
+
+func travel(root error, v visitor) {
+	cur := root
 	for cur != nil {
 		if a, ok := cur.(*annotated); ok {
-			if o.code == 0 {
-				o.code = a.code
+			if v.OnCode != nil {
+				v.OnCode(a.code)
 			}
-			o.details = append(o.details, a.details...)
+			if v.OnDetails != nil {
+				v.OnDetails(a.details)
+			}
 		}
-		if o.message == "" {
-			o.message = cur.Error()
+		if v.OnError != nil {
+			v.OnError(cur)
 		}
-		o.cause = cur
 		cur = errors.Unwrap(cur)
 	}
-	if o.cause == nil {
-		return nil
-	}
-
-	return &o
 }

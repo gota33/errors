@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -71,6 +72,10 @@ var (
 
 type StatusCode int
 
+func (c StatusCode) Annotate(m Modifier) {
+	m.SetCode(c)
+}
+
 func (c StatusCode) Valid() bool {
 	return c >= 0 && c < totalStatus
 }
@@ -95,20 +100,30 @@ func (c StatusCode) HttpCode() int {
 	}
 }
 
-func StrToCode(status string) StatusCode {
+type StatusCodeName string
+
+func (s StatusCodeName) StatusCode() StatusCode {
+	name := strings.ToUpper(string(s))
 	for i, value := range statusList {
-		if status == value {
+		if name == value {
 			return StatusCode(i)
 		}
 	}
 	return Unknown
 }
 
-func HttpToCode(httpCode int) StatusCode {
+type HttpStatusCode int
+
+func (c HttpStatusCode) StatusCode() StatusCode {
+	num := int(c)
 	for i, value := range httpList {
-		if httpCode == value {
+		if num == value {
 			return StatusCode(i)
 		}
 	}
 	return Unknown
+}
+
+func (c HttpStatusCode) Annotate(m Modifier) {
+	m.SetCode(c.StatusCode())
 }
