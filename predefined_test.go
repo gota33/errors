@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,46 +9,53 @@ import (
 
 const msg = "msg"
 
+var rootErr = fmt.Errorf(msg)
+
 var preErrors = []*annotated{
-	{NotFound, NotFound, msg, []Any{resourceInfo}},
-	{InvalidArgument, InvalidArgument, msg, []Any{badRequest}},
-	{FailedPrecondition, FailedPrecondition, msg, []Any{preconditionFailure}},
-	{OutOfRange, OutOfRange, msg, []Any{badRequest}},
-	{Unauthenticated, Unauthenticated, msg, []Any{errInfo}},
-	{PermissionDenied, PermissionDenied, msg, []Any{errInfo}},
-	{Aborted, Aborted, msg, []Any{errInfo}},
-	{AlreadyExists, AlreadyExists, msg, []Any{resourceInfo}},
-	{ResourceExhausted, ResourceExhausted, msg, []Any{quotaFailure}},
-	{Cancelled, Cancelled, msg, nil},
-	{DataLoss, DataLoss, msg, []Any{debugInfo}},
-	{Unknown, Unknown, msg, []Any{debugInfo}},
-	{Internal, Internal, msg, []Any{debugInfo}},
-	{Unimplemented, Unimplemented, msg, nil},
-	{Unavailable, Unavailable, msg, []Any{debugInfo}},
-	{DeadlineExceeded, DeadlineExceeded, msg, []Any{debugInfo}},
+	{rootErr, NotFound, msg, []Any{resourceInfo}},
+	{rootErr, InvalidArgument, msg, []Any{badRequest}},
+	{rootErr, FailedPrecondition, msg, []Any{preconditionFailure}},
+	{rootErr, OutOfRange, msg, []Any{badRequest}},
+	{rootErr, Unauthenticated, msg, []Any{errInfo}},
+	{rootErr, PermissionDenied, msg, []Any{errInfo}},
+	{rootErr, Aborted, msg, []Any{errInfo}},
+	{rootErr, AlreadyExists, msg, []Any{resourceInfo}},
+	{rootErr, ResourceExhausted, msg, []Any{quotaFailure}},
+	{rootErr, Cancelled, msg, nil},
+	{rootErr, DataLoss, msg, []Any{debugInfo}},
+	{rootErr, Unknown, msg, []Any{debugInfo}},
+	{rootErr, Internal, msg, []Any{debugInfo}},
+	{rootErr, Unimplemented, msg, nil},
+	{rootErr, Unavailable, msg, []Any{debugInfo}},
+	{rootErr, DeadlineExceeded, msg, []Any{debugInfo}},
 }
 
 func TestPredefined(t *testing.T) {
 	errors := []error{
-		NewNotFound(msg, resourceInfo),
-		NewBadRequest(msg, badRequest),
-		NewFailedPrecondition(msg, preconditionFailure),
-		NewOutOfRange(msg, badRequest),
-		NewUnauthenticated(msg, errInfo),
-		NewPermissionDenied(msg, errInfo),
-		NewAborted(msg, errInfo),
-		NewAlreadyExists(msg, resourceInfo),
-		NewResourceExhausted(msg, quotaFailure),
-		NewCancelled(msg),
-		NewDataLoss(msg, debugInfo),
-		NewUnknown(msg, debugInfo),
-		NewInternal(msg, debugInfo),
-		NewUnimplemented(msg),
-		NewUnavailable(msg, debugInfo),
-		NewDeadlineExceeded(msg, debugInfo),
+		WithNotFound(rootErr, resourceInfo),
+		WithBadRequest(rootErr, badRequest),
+		WithFailedPrecondition(rootErr, preconditionFailure),
+		WithOutOfRange(rootErr, badRequest),
+		WithUnauthenticated(rootErr, errInfo),
+		WithPermissionDenied(rootErr, errInfo),
+		WithAborted(rootErr, errInfo),
+		WithAlreadyExists(rootErr, resourceInfo),
+		WithResourceExhausted(rootErr, quotaFailure),
+		WithCancelled(rootErr),
+		WithDataLoss(rootErr, debugInfo),
+		WithUnknown(rootErr, debugInfo),
+		WithInternal(rootErr, debugInfo),
+		WithUnimplemented(rootErr),
+		WithUnavailable(rootErr, debugInfo),
+		WithDeadlineExceeded(rootErr, debugInfo),
 	}
 
 	for i, err := range errors {
 		assert.Equal(t, preErrors[i], err)
 	}
+}
+
+func TestNil(t *testing.T) {
+	err := WithUnknown(nil, DebugInfo{})
+	assert.NoError(t, err)
 }

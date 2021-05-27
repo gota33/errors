@@ -1,74 +1,78 @@
 package errors
 
-func predefined(message string, code StatusCode, details ...Any) error {
+func predefined(cause error, code StatusCode, details ...Any) error {
+	if cause == nil {
+		return nil
+	}
+
 	return &annotated{
-		cause:   code,
+		cause:   cause,
 		code:    code,
-		message: message,
+		message: cause.Error(),
 		details: details,
 	}
 }
 
-func NewNotFound(message string, detail ResourceInfo) error {
-	return predefined(message, NotFound, detail)
+func WithNotFound(cause error, detail ResourceInfo) error {
+	return predefined(cause, NotFound, detail)
 }
 
-func NewBadRequest(message string, detail BadRequest) error {
-	return predefined(message, InvalidArgument, detail)
+func WithBadRequest(cause error, detail BadRequest) error {
+	return predefined(cause, InvalidArgument, detail)
 }
 
-func NewFailedPrecondition(message string, detail PreconditionFailure) error {
-	return predefined(message, FailedPrecondition, detail)
+func WithFailedPrecondition(cause error, detail PreconditionFailure) error {
+	return predefined(cause, FailedPrecondition, detail)
 }
 
-func NewOutOfRange(message string, detail BadRequest) (err error) {
-	return predefined(message, OutOfRange, detail)
+func WithOutOfRange(cause error, detail BadRequest) (err error) {
+	return predefined(cause, OutOfRange, detail)
 }
 
-func NewUnauthenticated(message string, detail ErrorInfo) (err error) {
-	return predefined(message, Unauthenticated, detail)
+func WithUnauthenticated(cause error, detail ErrorInfo) (err error) {
+	return predefined(cause, Unauthenticated, detail)
 }
 
-func NewPermissionDenied(message string, detail ErrorInfo) (err error) {
-	return predefined(message, PermissionDenied, detail)
+func WithPermissionDenied(cause error, detail ErrorInfo) (err error) {
+	return predefined(cause, PermissionDenied, detail)
 }
 
-func NewAborted(message string, detail ErrorInfo) (err error) {
-	return predefined(message, Aborted, detail)
+func WithAborted(cause error, detail ErrorInfo) (err error) {
+	return predefined(cause, Aborted, detail)
 }
 
-func NewAlreadyExists(message string, detail ResourceInfo) (err error) {
-	return predefined(message, AlreadyExists, detail)
+func WithAlreadyExists(cause error, detail ResourceInfo) (err error) {
+	return predefined(cause, AlreadyExists, detail)
 }
 
-func NewResourceExhausted(message string, detail QuotaFailure) (err error) {
-	return predefined(message, ResourceExhausted, detail)
+func WithResourceExhausted(cause error, detail QuotaFailure) (err error) {
+	return predefined(cause, ResourceExhausted, detail)
 }
 
-func NewCancelled(message string) (err error) {
-	return predefined(message, Cancelled)
+func WithCancelled(cause error) (err error) {
+	return predefined(cause, Cancelled)
 }
 
-func NewDataLoss(message string, detail DebugInfo) (err error) {
-	return predefined(message, DataLoss, detail)
+func WithDataLoss(cause error, detail DebugInfo) (err error) {
+	return predefined(cause, DataLoss, detail)
 }
 
-func NewUnknown(message string, detail DebugInfo) (err error) {
-	return predefined(message, Unknown, detail)
+func WithUnknown(cause error, detail DebugInfo) (err error) {
+	return predefined(cause, Unknown, detail)
 }
 
-func NewInternal(message string, detail DebugInfo) (err error) {
-	return predefined(message, Internal, detail)
+func WithInternal(cause error, detail DebugInfo) (err error) {
+	return predefined(cause, Internal, detail)
 }
 
-func NewUnimplemented(message string) (err error) {
-	return predefined(message, Unimplemented)
+func WithUnimplemented(cause error) (err error) {
+	return predefined(cause, Unimplemented)
 }
 
-func NewUnavailable(message string, detail DebugInfo) (err error) {
-	return predefined(message, Unavailable, detail)
+func WithUnavailable(cause error, detail DebugInfo) (err error) {
+	return predefined(cause, Unavailable, detail)
 }
 
-func NewDeadlineExceeded(message string, detail DebugInfo) (err error) {
-	return predefined(message, DeadlineExceeded, detail)
+func WithDeadlineExceeded(cause error, detail DebugInfo) (err error) {
+	return predefined(cause, DeadlineExceeded, detail)
 }
