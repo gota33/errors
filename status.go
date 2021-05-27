@@ -49,7 +49,7 @@ var (
 		"DATA_LOSS",
 		"UNAUTHENTICATED",
 	}
-	httpList = [totalStatus]HttpStatusCode{
+	httpList = [totalStatus]int{
 		http.StatusOK,
 		499,
 		http.StatusInternalServerError,
@@ -93,7 +93,7 @@ func (c StatusCode) Name() StatusName {
 
 func (c StatusCode) String() string { return string(c.Name()) }
 
-func (c StatusCode) Http() HttpStatusCode {
+func (c StatusCode) Http() int {
 	if c.Valid() {
 		return httpList[c]
 	}
@@ -114,19 +114,4 @@ func (s StatusName) StatusCode() StatusCode {
 
 func (s StatusName) String() string {
 	return strings.ToUpper(string(s))
-}
-
-type HttpStatusCode int
-
-func (c HttpStatusCode) StatusCode() StatusCode {
-	for i, value := range httpList {
-		if c == value {
-			return StatusCode(i)
-		}
-	}
-	return Unknown
-}
-
-func (c HttpStatusCode) Annotate(m Modifier) {
-	m.SetCode(c.StatusCode())
 }

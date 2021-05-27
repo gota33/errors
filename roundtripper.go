@@ -62,9 +62,7 @@ func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, e
 		}
 	}
 
-	return Annotate(
-		errors.New(buf.String()),
-		HttpStatusCode(resp.StatusCode))
+	return Annotate(errors.New(buf.String()), Internal)
 }
 
 func (e *RoundTripper) isSuccess(r *http.Response) bool {

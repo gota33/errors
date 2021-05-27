@@ -1,1 +1,5 @@
-module "github.com/gota33/errors"
+module github.com/gota33/errors
+
+go 1.16
+
+require github.com/stretchr/testify v1.7.0 // indirect
