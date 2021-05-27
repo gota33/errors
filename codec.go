@@ -2,7 +2,12 @@ package errors
 
 import (
 	"encoding/json"
-	"io"
+	"errors"
+)
+
+var (
+	ErrNoEncoder = errors.New("encoder: inner encoder is required")
+	ErrNoDecoder = errors.New("decoder: inner decoder is required")
 )
 
 var typeProvider = map[string]func() Any{
@@ -36,15 +41,52 @@ type messageBody struct {
 	Details []Any      `json:"details,omitempty"`
 }
 
-func Encode(w io.Writer, in error) error {
+type DetailFilter func(a Any) bool
+
+func HideDebugInfo(a Any) bool {
+	return a.TypeUrl() != TypeUrlDebugInfo
+}
+
+type encoder interface {
+	Encode(v interface{}) error
+}
+
+type Encoder struct {
+	Filters []DetailFilter
+	encoder
+}
+
+func NewEncoder(enc encoder) *Encoder {
+	return &Encoder{encoder: enc}
+}
+
+func (e *Encoder) Encode(in error) error {
 	var body messageBody
 	if a, ok := Flatten(in).(*annotated); ok {
 		body.Code = a.code.Http()
 		body.Status = a.code.Name()
 		body.Message = a.message
-		body.Details = a.details
+		body.Details = e.filter(a.details)
 	}
-	return json.NewEncoder(w).Encode(message{body})
+
+	if e.encoder == nil {
+		return ErrNoEncoder
+	}
+
+	return e.encoder.Encode(message{body})
+}
+
+func (e *Encoder) filter(details []Any) (out []Any) {
+Loop:
+	for _, detail := range details {
+		for _, filter := range e.Filters {
+			if !filter(detail) {
+				continue Loop
+			}
+		}
+		out = append(out, detail)
+	}
+	return
 }
 
 type encodedMessage struct {
@@ -58,9 +100,25 @@ type encodedBody struct {
 	Details json.RawMessage `json:"details,omitempty"`
 }
 
-func Decode(r io.Reader) (err error) {
+type decoder interface {
+	Decode(v interface{}) error
+}
+
+type Decoder struct {
+	dec decoder
+}
+
+func NewDecoder(dec decoder) *Decoder {
+	return &Decoder{dec: dec}
+}
+
+func (d Decoder) Decode() (err error) {
+	if d.dec == nil {
+		return ErrNoDecoder
+	}
+
 	var msg encodedMessage
-	if err = json.NewDecoder(r).Decode(&msg); err != nil {
+	if err = d.dec.Decode(&msg); err != nil {
 		return
 	}
 

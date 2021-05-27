@@ -2,6 +2,7 @@ package errors
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -57,7 +58,8 @@ func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, e
 	}
 
 	if e.isJson(resp) {
-		if err = Decode(&buf); err != nil {
+		dec := NewDecoder(json.NewDecoder(&buf))
+		if err = dec.Decode(); err != nil {
 			return e.onInternalError(req, err)
 		}
 	}
