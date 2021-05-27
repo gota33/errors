@@ -16,7 +16,7 @@ type RoundTripper struct {
 
 func (e *RoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if resp, err = e.next(req); err != nil {
-		err = e.onInternalError(req, err)
+		err = e.onError(req, err)
 		return
 	}
 
@@ -37,9 +37,9 @@ func (e *RoundTripper) next(req *http.Request) (resp *http.Response, err error) 
 	return rt.RoundTrip(req)
 }
 
-func (e *RoundTripper) onInternalError(req *http.Request, err error) error {
+func (e *RoundTripper) onError(req *http.Request, err error) error {
 	var (
-		annotations = []Annotation{Internal}
+		annotations = []Annotation{Code(err)}
 		uErr        *url.Error
 	)
 	if !errors.As(err, &uErr) {
@@ -54,14 +54,13 @@ func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, e
 
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
-		return e.onInternalError(req, err)
+		return e.onError(req, err)
 	}
 
 	if e.isJson(resp) {
 		dec := NewDecoder(json.NewDecoder(&buf))
-		if err = dec.Decode(); err != nil {
-			return e.onInternalError(req, err)
-		}
+		err = dec.Decode()
+		return e.onError(req, err)
 	}
 
 	return Annotate(errors.New(buf.String()), Unknown)

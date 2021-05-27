@@ -69,10 +69,11 @@ func (e annotated) Format(f fmt.State, verb rune) {
 func Annotate(cause error, annotations ...Annotation) error {
 	err, ok := cause.(*annotated)
 	if !ok {
-		err = &annotated{cause: cause}
+		err = &annotated{
+			cause:   cause,
+			message: cause.Error(),
+		}
 	}
-
-	Message(cause.Error()).Annotate(err)
 
 	for _, annotation := range annotations {
 		annotation.Annotate(err)
