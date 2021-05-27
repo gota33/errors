@@ -15,11 +15,11 @@ _, err := db.QueryRow("SELECT * FROM cats WHERE name = 'white' LIMIT 1")
 
 if err != nil {
     detail := ResourceInfo{
-		ResourceType: "pet.com/pet.v1.Cat",
-		ResourceName: "cat123@pet.com",
-		Owner:        "user123",
-		Description:  "cat123 not found",
-	}
+        ResourceType: "pet.com/pet.v1.Cat",
+        ResourceName: "cat123@pet.com",
+        Owner:        "user123",
+        Description:  "cat123 not found",
+    }
     
     // Standard way
     err = Annotate(err, NotFound, detail)
