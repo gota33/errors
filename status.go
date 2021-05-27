@@ -25,12 +25,12 @@ const (
 	Unavailable
 	DataLoss
 	Unauthenticated
+
+	totalStatus
 )
 
-const totalStatus = 17
-
 var (
-	statusList = [totalStatus]string{
+	statusList = [totalStatus]StatusName{
 		"OK",
 		"CANCELLED",
 		"UNKNOWN",
@@ -49,7 +49,7 @@ var (
 		"DATA_LOSS",
 		"UNAUTHENTICATED",
 	}
-	httpList = [totalStatus]int{
+	httpList = [totalStatus]HttpStatusCode{
 		http.StatusOK,
 		499,
 		http.StatusInternalServerError,
@@ -81,29 +81,29 @@ func (c StatusCode) Valid() bool {
 }
 
 func (c StatusCode) Error() string {
-	return fmt.Sprintf("%d %s", c.HttpCode(), c.String())
+	return fmt.Sprintf("%d %s", c.Http(), c.String())
 }
 
-func (c StatusCode) String() string {
+func (c StatusCode) Name() StatusName {
 	if c.Valid() {
 		return statusList[c]
-	} else {
-		return "Code(" + strconv.FormatInt(int64(c), 10) + ")"
 	}
+	return StatusName("Code(" + strconv.FormatInt(int64(c), 10) + ")")
 }
 
-func (c StatusCode) HttpCode() int {
+func (c StatusCode) String() string { return string(c.Name()) }
+
+func (c StatusCode) Http() HttpStatusCode {
 	if c.Valid() {
 		return httpList[c]
-	} else {
-		return http.StatusInternalServerError
 	}
+	return http.StatusInternalServerError
 }
 
-type StatusCodeName string
+type StatusName string
 
-func (s StatusCodeName) StatusCode() StatusCode {
-	name := strings.ToUpper(string(s))
+func (s StatusName) StatusCode() StatusCode {
+	name := StatusName(s.String())
 	for i, value := range statusList {
 		if name == value {
 			return StatusCode(i)
@@ -112,12 +112,15 @@ func (s StatusCodeName) StatusCode() StatusCode {
 	return Unknown
 }
 
+func (s StatusName) String() string {
+	return strings.ToUpper(string(s))
+}
+
 type HttpStatusCode int
 
 func (c HttpStatusCode) StatusCode() StatusCode {
-	num := int(c)
 	for i, value := range httpList {
-		if num == value {
+		if c == value {
 			return StatusCode(i)
 		}
 	}

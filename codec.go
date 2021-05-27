@@ -30,17 +30,17 @@ type message struct {
 }
 
 type messageBody struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-	Status  string `json:"status,omitempty"`
-	Details []Any  `json:"details,omitempty"`
+	Code    HttpStatusCode `json:"code,omitempty"`
+	Message string         `json:"message,omitempty"`
+	Status  StatusName     `json:"status,omitempty"`
+	Details []Any          `json:"details,omitempty"`
 }
 
 func Encode(w io.Writer, in error) error {
 	var body messageBody
 	if a, ok := Flatten(in).(*annotated); ok {
-		body.Code = a.code.HttpCode()
-		body.Status = a.code.String()
+		body.Code = a.code.Http()
+		body.Status = a.code.Name()
 		body.Message = a.message
 		body.Details = a.details
 	}
@@ -52,9 +52,9 @@ type encodedMessage struct {
 }
 
 type encodedBody struct {
-	Code    int             `json:"code,omitempty"`
+	Code    HttpStatusCode  `json:"code,omitempty"`
 	Message string          `json:"message,omitempty"`
-	Status  StatusCodeName  `json:"status,omitempty"`
+	Status  StatusName      `json:"status,omitempty"`
 	Details json.RawMessage `json:"details,omitempty"`
 }
 
