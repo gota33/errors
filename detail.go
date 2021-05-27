@@ -22,6 +22,7 @@ const (
 )
 
 type Any interface {
+	Annotation
 	TypeUrl() string
 }
 
@@ -34,6 +35,8 @@ func (d AnyDetail) MarshalJSON() ([]byte, error) {
 func (d AnyDetail) TypeUrl() string {
 	return fmt.Sprintf("%v", d["@type"])
 }
+
+func (d AnyDetail) Annotate(m Modifier) { m.AppendDetails(d) }
 
 type DebugInfo struct {
 	StackEntries []string `json:"stackEntries,omitempty"`

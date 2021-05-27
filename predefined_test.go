@@ -8,15 +8,6 @@ import (
 
 const msg = "msg"
 
-var (
-	resourceInfo        ResourceInfo
-	badRequest          BadRequest
-	preconditionFailure PreconditionFailure
-	errInfo             ErrorInfo
-	quotaFailure        QuotaFailure
-	debugInfo           DebugInfo
-)
-
 var preErrors = []*annotated{
 	{NotFound, NotFound, msg, []Any{resourceInfo}},
 	{InvalidArgument, InvalidArgument, msg, []Any{badRequest}},
