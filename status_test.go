@@ -65,7 +65,7 @@ func (m *MockModifier) SetCode(code StatusCode) {
 	m.Code = code
 }
 
-func (m *MockModifier) AppendMessage(msg string) {
+func (m *MockModifier) WrapMessage(msg string) {
 	m.Messages = append(m.Messages, msg)
 }
 

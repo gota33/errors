@@ -11,6 +11,11 @@ import (
 )
 
 func TestErrors(t *testing.T) {
+	t.Run("annotate nil", func(t *testing.T) {
+		err := Annotate(nil, NotFound)
+		assert.NoError(t, err)
+	})
+
 	code := NotFound
 	cause := fmt.Errorf("wrapper: %w", sql.ErrNoRows)
 	err := Annotate(cause, Message(msg), code, resourceInfo)
@@ -31,6 +36,11 @@ func TestErrors(t *testing.T) {
 		assert.Equal(t, code, Code(err))
 		assert.Equal(t, OK, Code(nil))
 		assert.Equal(t, Unknown, Code(errors.New("unknown error")))
+	})
+
+	t.Run("code2", func(t *testing.T) {
+		_err := Annotate(NotFound, Message("user"))
+		assert.Equal(t, NotFound, Code(_err))
 	})
 
 	t.Run("detail", func(t *testing.T) {
@@ -57,9 +67,23 @@ func TestFlatten(t *testing.T) {
 		DeadlineExceeded: context.DeadlineExceeded,
 	}
 
+	hide := func(typeUrl string) DetailMapper {
+		return func(a Any) Any {
+			if typeUrl != a.TypeUrl() {
+				return a
+			}
+			return nil
+		}
+	}
+
+	mappers := detailMappers{
+		hide(TypeUrlDebugInfo),
+		hide(TypeUrlResourceInfo),
+	}
+
 	for code, cause := range causes {
-		err := Annotate(cause, Message(msg), debugInfo)
-		err = Flatten(err)
+		err := Annotate(cause, Message(msg), debugInfo, resourceInfo, errInfo)
+		err = Flatten(err, mappers...)
 
 		a, ok := err.(*annotated)
 		if !assert.True(t, ok) {
@@ -67,5 +91,10 @@ func TestFlatten(t *testing.T) {
 		}
 
 		assert.Equal(t, code, a.code)
+
+		for _, detail := range details {
+			assert.NotEqual(t, debugInfo, detail)
+			assert.NotEqual(t, resourceInfo, detail)
+		}
 	}
 }

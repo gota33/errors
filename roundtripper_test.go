@@ -1,12 +1,14 @@
 package errors
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -28,8 +30,9 @@ func TestRoundTripper(t *testing.T) {
 		case "internal":
 			w.WriteHeader(fullError.code.Http())
 			_, _ = io.WriteString(w, "123")
+		case "plaintext":
+			http.Error(w, sql.ErrNoRows.Error(), http.StatusNotFound)
 		}
-
 	}))
 	defer srv.Close()
 
@@ -61,11 +64,11 @@ func TestRoundTripper(t *testing.T) {
 
 		var a *annotated
 		if assert.True(t, errors.As(err, &a)) {
-			messageEx := fmt.Sprintf("GET %s/sad: %s", srv.URL, fullError.Error())
+			messageEx := fmt.Sprintf("Get \"%s/sad\": %s", srv.URL, fullError.Error())
 
-			assert.Equal(t, fullError.code, a.code)
-			assert.Equal(t, fullError.code, a.cause)
-			assert.Equal(t, messageEx, a.Error())
+			assert.Equal(t, fullError.code, Code(err))
+			assert.ErrorIs(t, a.cause, fullError.code)
+			assert.Equal(t, messageEx, err.Error())
 		}
 	})
 
@@ -75,18 +78,29 @@ func TestRoundTripper(t *testing.T) {
 			return
 		}
 
-		var a *annotated
-		if assert.True(t, errors.As(err, &a)) {
-			var jErr *json.UnmarshalTypeError
-			if !assert.True(t, errors.As(err, &jErr)) {
-				return
-			}
-
-			messageEx := fmt.Sprintf("GET %s/internal: %s", srv.URL, jErr)
-
-			assert.Equal(t, Unknown, a.code)
-			assert.True(t, errors.Is(a.cause, jErr))
-			assert.Equal(t, messageEx, a.Error())
+		var jErr *json.UnmarshalTypeError
+		if !assert.ErrorAs(t, err, &jErr) {
+			return
 		}
+
+		uErr := &url.Error{Op: "Get", URL: srv.URL + "/internal", Err: jErr}
+		assert.Equal(t, Unknown, Code(err))
+		assert.Equal(t, uErr.Error(), err.Error())
+	})
+
+	t.Run("plaintext", func(t *testing.T) {
+		_, err := client.Get(srv.URL + "/plaintext")
+		if !assert.Error(t, err) {
+			return
+		}
+
+		cause := &url.Error{
+			Op:  "Get",
+			URL: srv.URL + "/plaintext",
+			Err: fmt.Errorf("%s: %w", sql.ErrNoRows, Unknown),
+		}
+		assert.ErrorIs(t, err, Unknown)
+		assert.Equal(t, Unknown, Code(err))
+		assert.Equal(t, cause.Error(), err.Error())
 	})
 }

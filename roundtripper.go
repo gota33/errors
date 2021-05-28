@@ -3,10 +3,8 @@ package errors
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -16,7 +14,6 @@ type RoundTripper struct {
 
 func (e *RoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if resp, err = e.next(req); err != nil {
-		err = e.onError(req, err)
 		return
 	}
 
@@ -24,7 +21,7 @@ func (e *RoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err er
 		return
 	}
 
-	err = e.onBusinessError(req, resp, err)
+	err = e.onError(resp, err)
 	resp = nil
 	return
 }
@@ -37,33 +34,21 @@ func (e *RoundTripper) next(req *http.Request) (resp *http.Response, err error) 
 	return rt.RoundTrip(req)
 }
 
-func (e *RoundTripper) onError(req *http.Request, err error) error {
-	var (
-		annotations = []Annotation{Code(err)}
-		uErr        *url.Error
-	)
-	if !errors.As(err, &uErr) {
-		msg := fmt.Sprintf("%s %s", req.Method, req.URL)
-		annotations = append(annotations, Message(msg))
-	}
-	return Annotate(err, annotations...)
-}
-
-func (e *RoundTripper) onBusinessError(req *http.Request, resp *http.Response, err error) error {
+func (e *RoundTripper) onError(resp *http.Response, err error) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
-		return e.onError(req, err)
+		return err
 	}
 
 	if e.isJson(resp) {
 		dec := NewDecoder(json.NewDecoder(&buf))
-		err = dec.Decode()
-		return e.onError(req, err)
+		return dec.Decode()
 	}
 
-	return Annotate(errors.New(buf.String()), Unknown)
+	msg := strings.TrimSpace(buf.String())
+	return fmt.Errorf("%s: %w", msg, Unknown)
 }
 
 func (e *RoundTripper) isSuccess(r *http.Response) bool {

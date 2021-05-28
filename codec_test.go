@@ -36,10 +36,10 @@ var fullError = &annotated{
 
 func TestEncode(t *testing.T) {
 	t.Run("encode", func(t *testing.T) {
-		encode := func(raw string, filters ...DetailFilter) {
+		encode := func(raw string, mappers ...DetailMapper) {
 			var buf bytes.Buffer
 			enc := NewEncoder(json.NewEncoder(&buf))
-			enc.Filters = filters
+			enc.Mappers = mappers
 			err := enc.Encode(fullError)
 
 			if assert.NoError(t, err) {

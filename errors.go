@@ -10,7 +10,7 @@ import (
 
 type Modifier interface {
 	SetCode(code StatusCode)
-	AppendMessage(msg string)
+	WrapMessage(msg string)
 	AppendDetails(details ...Any)
 }
 
@@ -33,12 +33,9 @@ func (e *annotated) AppendDetails(details ...Any) {
 	e.details = append(e.details, details...)
 }
 
-func (e *annotated) AppendMessage(msg string) {
-	if e.message == "" {
-		e.message = msg
-	} else {
-		e.message = msg + ": " + e.message
-	}
+func (e *annotated) WrapMessage(msg string) {
+	next := msg + ": " + e.message
+	e.message = strings.TrimPrefix(next, ": ")
 }
 
 func (e annotated) Unwrap() error { return e.cause }
@@ -67,12 +64,17 @@ func (e annotated) Format(f fmt.State, verb rune) {
 }
 
 func Annotate(cause error, annotations ...Annotation) error {
-	err, ok := cause.(*annotated)
-	if !ok {
-		err = &annotated{
-			cause:   cause,
-			message: cause.Error(),
-		}
+	if cause == nil || len(annotations) == 0 {
+		return cause
+	}
+
+	err := &annotated{
+		cause:   cause,
+		message: cause.Error(),
+	}
+
+	if code, ok := cause.(StatusCode); ok {
+		err.code = code
 	}
 
 	for _, annotation := range annotations {
@@ -84,47 +86,79 @@ func Annotate(cause error, annotations ...Annotation) error {
 type Message string
 
 func (a Message) Annotate(m Modifier) {
-	m.AppendMessage(string(a))
+	m.WrapMessage(string(a))
 }
 
-func Code(err error) StatusCode {
-	if err == nil {
-		return OK
+func Code(err error) (out StatusCode) {
+	travel(err, visitor{
+		OnCode: func(code StatusCode) bool {
+			out = code
+			return out == OK
+		},
+	})
+	if err != nil && out == OK {
+		out = Unknown
 	}
-
-	var a *annotated
-	if errors.As(err, &a) {
-		return a.code
-	}
-	return Unknown
+	return
 }
 
 func Details(err error) (out []Any) {
 	travel(err, visitor{
-		OnDetails: func(details []Any) {
+		OnDetails: func(details []Any) bool {
 			out = append(out, details...)
+			return true
 		},
 	})
 	return
 }
 
-func Flatten(err error) error {
+func HideDebugInfo(a Any) Any {
+	if a.TypeUrl() == TypeUrlDebugInfo {
+		return nil
+	}
+	return a
+}
+
+type DetailMapper func(a Any) Any
+
+type detailMappers []DetailMapper
+
+func (fn detailMappers) Map(detail Any) (out Any) {
+	out = detail
+	for _, mapper := range fn {
+		if out == nil {
+			return
+		}
+		out = mapper(out)
+	}
+	return
+}
+
+func Flatten(err error, mappers ...DetailMapper) error {
 	var o annotated
 
 	travel(err, visitor{
-		OnCode: func(code StatusCode) {
+		OnCode: func(code StatusCode) bool {
 			if o.code == OK {
 				o.code = code
 			}
+			return true
 		},
-		OnDetails: func(details []Any) {
-			o.details = append(o.details, details...)
+		OnDetails: func(details []Any) bool {
+			mapper := detailMappers(mappers)
+			for _, detail := range details {
+				if d := mapper.Map(detail); d != nil {
+					o.details = append(o.details, d)
+				}
+			}
+			return true
 		},
-		OnError: func(cur error) {
+		OnError: func(cur error) bool {
 			if o.message == "" {
 				o.message = cur.Error()
 			}
 			o.cause = cur
+			return true
 		},
 	})
 
@@ -140,24 +174,24 @@ func Flatten(err error) error {
 }
 
 type visitor struct {
-	OnCode    func(code StatusCode)
-	OnDetails func(details []Any)
-	OnError   func(err error)
+	OnCode    func(code StatusCode) bool
+	OnDetails func(details []Any) bool
+	OnError   func(err error) bool
 }
 
 func travel(root error, v visitor) {
 	cur := root
 	for cur != nil {
 		if a, ok := cur.(*annotated); ok {
-			if v.OnCode != nil {
-				v.OnCode(a.code)
+			if v.OnCode != nil && !v.OnCode(a.code) {
+				break
 			}
-			if v.OnDetails != nil {
-				v.OnDetails(a.details)
+			if v.OnDetails != nil && !v.OnDetails(a.details) {
+				break
 			}
 		}
-		if v.OnError != nil {
-			v.OnError(cur)
+		if v.OnError != nil && !v.OnError(cur) {
+			break
 		}
 		cur = errors.Unwrap(cur)
 	}

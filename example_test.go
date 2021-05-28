@@ -72,7 +72,7 @@ func ExampleEncoder() {
 	jEnc := json.NewEncoder(os.Stdout)
 	jEnc.SetIndent("  ", "  ")
 	enc := NewEncoder(jEnc)
-	enc.Filters = []DetailFilter{HideDebugInfo}
+	enc.Mappers = []DetailMapper{HideDebugInfo}
 	_ = enc.Encode(err)
 
 	// Example Output:

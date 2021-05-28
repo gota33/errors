@@ -41,18 +41,12 @@ type messageBody struct {
 	Details []Any      `json:"details,omitempty"`
 }
 
-type DetailFilter func(a Any) bool
-
-func HideDebugInfo(a Any) bool {
-	return a.TypeUrl() != TypeUrlDebugInfo
-}
-
 type encoder interface {
 	Encode(v interface{}) error
 }
 
 type Encoder struct {
-	Filters []DetailFilter
+	Mappers []DetailMapper
 	encoder
 }
 
@@ -62,11 +56,11 @@ func NewEncoder(enc encoder) *Encoder {
 
 func (e *Encoder) Encode(in error) error {
 	var body messageBody
-	if a, ok := Flatten(in).(*annotated); ok {
+	if a, ok := Flatten(in, e.Mappers...).(*annotated); ok {
 		body.Code = a.code.Http()
 		body.Status = a.code.Name()
 		body.Message = a.message
-		body.Details = e.filter(a.details)
+		body.Details = a.details
 	}
 
 	if e.encoder == nil {
@@ -74,19 +68,6 @@ func (e *Encoder) Encode(in error) error {
 	}
 
 	return e.encoder.Encode(message{body})
-}
-
-func (e *Encoder) filter(details []Any) (out []Any) {
-Loop:
-	for _, detail := range details {
-		for _, filter := range e.Filters {
-			if !filter(detail) {
-				continue Loop
-			}
-		}
-		out = append(out, detail)
-	}
-	return
 }
 
 type encodedMessage struct {
