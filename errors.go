@@ -181,17 +181,23 @@ type visitor struct {
 
 func travel(root error, v visitor) {
 	cur := root
+Loop:
 	for cur != nil {
-		if a, ok := cur.(*annotated); ok {
+		switch a := cur.(type) {
+		case StatusCode:
+			if v.OnCode != nil && !v.OnCode(a) {
+				break Loop
+			}
+		case *annotated:
 			if v.OnCode != nil && !v.OnCode(a.code) {
-				break
+				break Loop
 			}
 			if v.OnDetails != nil && !v.OnDetails(a.details) {
-				break
+				break Loop
 			}
 		}
 		if v.OnError != nil && !v.OnError(cur) {
-			break
+			break Loop
 		}
 		cur = errors.Unwrap(cur)
 	}
