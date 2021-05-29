@@ -102,6 +102,21 @@ func Code(err error) (out StatusCode) {
 	return
 }
 
+func Temporary(err error) (out bool) {
+	travel(err, visitor{
+		OnError: func(err error) bool {
+			if tErr, ok := err.(interface {
+				Temporary() bool
+			}); ok {
+				out = tErr.Temporary()
+				return false
+			}
+			return true
+		},
+	})
+	return
+}
+
 func Details(err error) (out []Any) {
 	travel(err, visitor{
 		OnDetails: func(details []Any) bool {

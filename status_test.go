@@ -55,6 +55,13 @@ func TestStatusName(t *testing.T) {
 	})
 }
 
+func TestStatusTemporary(t *testing.T) {
+	for i := 0; i < int(totalStatus); i++ {
+		code := StatusCode(i)
+		assert.Equal(t, code == Unavailable, code.Temporary())
+	}
+}
+
 type MockModifier struct {
 	Code     StatusCode
 	Messages []string

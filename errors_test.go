@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,6 +60,20 @@ func TestErrors(t *testing.T) {
 			assert.NotContains(t, str, "!")
 		}
 	})
+}
+
+func TestTemporary(t *testing.T) {
+	items := map[error]bool{
+		OK:                                  false,
+		Internal:                            false,
+		fmt.Errorf("wrap: %w", Internal):    false,
+		Unavailable:                         true,
+		fmt.Errorf("wrap: %w", Unavailable): true,
+		Annotate(&net.DNSError{IsTemporary: true}, Internal): true,
+	}
+	for err, ok := range items {
+		assert.Equal(t, ok, Temporary(err), err.Error())
+	}
 }
 
 func TestFlatten(t *testing.T) {

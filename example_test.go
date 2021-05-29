@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 )
@@ -111,6 +112,19 @@ func ExampleCode() {
 	code := Code(err)
 	fmt.Println(code)
 	// Output: 404 NOT_FOUND
+}
+
+func ExampleTemporary() {
+	fmt.Println(Temporary(OK))
+	fmt.Println(Temporary(Internal))
+	fmt.Println(Temporary(Unavailable))
+	fmt.Println(Temporary(&net.DNSError{IsTemporary: true}))
+
+	// Output:
+	// false
+	// false
+	// true
+	// true
 }
 
 func ExampleDetails() {

@@ -40,6 +40,22 @@ fmt.Println(code)
 // Output: 404 NOT_FOUND
 ```
 
+## Check temporary
+
+``` go
+// ...
+fmt.Println(Temporary(OK))
+fmt.Println(Temporary(Internal))
+fmt.Println(Temporary(Unavailable))
+fmt.Println(Temporary(&net.DNSError{IsTemporary: true}))
+
+// Output:
+// false
+// false
+// true
+// true
+```
+
 ## Retrieving the details of an error
 
 ``` go

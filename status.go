@@ -84,6 +84,10 @@ func (c StatusCode) Error() string {
 	return fmt.Sprintf("%d %s", c.Http(), c.String())
 }
 
+func (c StatusCode) Temporary() bool {
+	return c == Unavailable
+}
+
 func (c StatusCode) Name() StatusName {
 	if c.Valid() {
 		return statusList[c]
