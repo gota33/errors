@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
 	typeUrlPrefix              = "type.googleapis.com/google.rpc."
+	TypeUrlRetryInfo           = typeUrlPrefix + "RetryInfo"
 	TypeUrlDebugInfo           = typeUrlPrefix + "DebugInfo"
 	TypeUrlResourceInfo        = typeUrlPrefix + "ResourceInfo"
 	TypeUrlBadRequest          = typeUrlPrefix + "BadRequest"
@@ -37,6 +40,60 @@ func (d AnyDetail) TypeUrl() string {
 }
 
 func (d AnyDetail) Annotate(m Modifier) { m.AppendDetails(d) }
+
+type Duration time.Duration
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	sec := time.Duration(d).Seconds()
+	str := strconv.FormatFloat(sec, 'f', -1, 64)
+	return json.Marshal(str + "s")
+}
+
+func (d *Duration) UnmarshalJSON(data []byte) (err error) {
+	var (
+		str string
+		dur time.Duration
+	)
+	if err = json.Unmarshal(data, &str); err != nil {
+		return
+	}
+	if dur, err = time.ParseDuration(str); err != nil {
+		return
+	}
+	*d = Duration(dur)
+	return
+}
+
+type RetryInfo struct {
+	RetryDelay Duration `json:"retryDelay"`
+}
+
+func (d RetryInfo) TypeUrl() string     { return TypeUrlRetryInfo }
+func (d RetryInfo) Annotate(m Modifier) { m.AppendDetails(d) }
+
+func (d RetryInfo) MarshalJSON() ([]byte, error) {
+	type payload RetryInfo
+	return json.Marshal(struct {
+		Type string `json:"@type"`
+		payload
+	}{d.TypeUrl(), payload(d)})
+}
+
+func (d RetryInfo) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if f.Flag('+') {
+			_, _ = fmt.Fprintf(f, "%s: %q\n", "type", d.TypeUrl())
+			_, _ = fmt.Fprintf(f, "%s: %q\n", "retry_delay", d.RetryDelay)
+			return
+		}
+		fallthrough
+	case 's':
+		_, _ = fmt.Fprintf(f, "%v", d.RetryDelay)
+	case 'q':
+		_, _ = fmt.Fprintf(f, "%q", d.RetryDelay)
+	}
+}
 
 type DebugInfo struct {
 	StackEntries []string `json:"stackEntries,omitempty"`

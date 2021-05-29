@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -11,6 +12,7 @@ import (
 const typeUrlCustom = "custom/type"
 
 var (
+	retryInfo           = RetryInfo{RetryDelay: Duration(time.Second + 100*time.Millisecond)}
 	resourceInfo        = ResourceInfo{"1", "2", "3", "4"}
 	badRequest          = BadRequest{[]FieldViolation{{"1", "2"}, {"3", "4"}}}
 	preconditionFailure = PreconditionFailure{[]TypedViolation{{"1", "2", "3"}, {"4", "5", "6"}}}
@@ -30,6 +32,7 @@ type Detail struct {
 }
 
 var details = []Detail{
+	{retryInfo, TypeUrlRetryInfo, `{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"1.1s"}`},
 	{debugInfo, TypeUrlDebugInfo, `{"@type":"type.googleapis.com/google.rpc.DebugInfo","stackEntries":["1","2"],"detail":"3"}`},
 	{resourceInfo, TypeUrlResourceInfo, `{"@type":"type.googleapis.com/google.rpc.ResourceInfo","resourceType":"1","resourceName":"2","owner":"3","description":"4"}`},
 	{badRequest, TypeUrlBadRequest, `{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"1","description":"2"},{"field":"3","description":"4"}]}`},

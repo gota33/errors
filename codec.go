@@ -11,6 +11,7 @@ var (
 )
 
 var typeProvider = map[string]func() Any{
+	TypeUrlRetryInfo:           func() Any { return new(RetryInfo) },
 	TypeUrlDebugInfo:           func() Any { return new(DebugInfo) },
 	TypeUrlResourceInfo:        func() Any { return new(ResourceInfo) },
 	TypeUrlBadRequest:          func() Any { return new(BadRequest) },
