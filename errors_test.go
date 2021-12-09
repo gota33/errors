@@ -44,6 +44,11 @@ func TestErrors(t *testing.T) {
 		assert.Equal(t, NotFound, Code(_err))
 	})
 
+	t.Run("code3", func(t *testing.T) {
+		assert.Equal(t, Cancelled, Code(context.Canceled))
+		assert.Equal(t, DeadlineExceeded, Code(context.DeadlineExceeded))
+	})
+
 	t.Run("detail", func(t *testing.T) {
 		assert.Equal(t, []Any{resourceInfo}, Details(err))
 	})

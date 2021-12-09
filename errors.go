@@ -96,7 +96,17 @@ func Code(err error) (out StatusCode) {
 			return out == OK
 		},
 	})
-	if err != nil && out == OK {
+
+	if err == nil || out != OK {
+		return
+	}
+
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		out = DeadlineExceeded
+	case errors.Is(err, context.Canceled):
+		out = Cancelled
+	default:
 		out = Unknown
 	}
 	return
