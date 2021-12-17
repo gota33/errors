@@ -178,8 +178,7 @@ if err != nil {
 defer resp.Body.Close()
 
 // Decode from response body
-r := strings.NewReader(resp.Body)
-dec := NewDecoder(json.NewDecoder(r))
+dec := NewDecoder(json.NewDecoder(resp.Body))
 
 err := dec.Decode()
 
