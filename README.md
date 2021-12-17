@@ -25,7 +25,7 @@ if err != nil {
     err = Annotate(err, NotFound, detail)
     
     // Or use predifined wrapper
-    err = WithNotFound(cause, detail)
+    err = WithNotFound(err, detail)
     return
 }
 
