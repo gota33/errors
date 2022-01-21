@@ -85,6 +85,8 @@ func TestFlatten(t *testing.T) {
 	causes := map[StatusCode]error{
 		Cancelled:        context.Canceled,
 		DeadlineExceeded: context.DeadlineExceeded,
+		Unknown:          errors.New("unknown error"),
+		OK:               nil,
 	}
 
 	hide := func(typeUrl string) DetailMapper {

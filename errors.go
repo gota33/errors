@@ -189,10 +189,14 @@ func Flatten(err error, mappers ...DetailMapper) error {
 
 	if o.code == OK {
 		switch o.cause {
+		case nil:
+			// Keep OK
 		case context.Canceled:
 			o.code = Cancelled
 		case context.DeadlineExceeded:
 			o.code = DeadlineExceeded
+		default:
+			o.code = Unknown
 		}
 	}
 	return &o
