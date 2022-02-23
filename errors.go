@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	New    = errors.New
 	As     = errors.As
 	Is     = errors.Is
 	Unwrap = errors.Unwrap
