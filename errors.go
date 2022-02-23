@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+var (
+	As     = errors.As
+	Is     = errors.Is
+	Unwrap = errors.Unwrap
+)
+
 type Modifier interface {
 	SetCode(code StatusCode)
 	WrapMessage(msg string)
