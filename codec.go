@@ -121,6 +121,9 @@ func (d Decoder) Decode() (err error) {
 }
 
 func decodeDetails(raw []byte) (details []Any, err error) {
+	if raw == nil {
+		return []Any{}, nil
+	}
 	var wrappers []json.RawMessage
 	if err = json.Unmarshal(raw, &wrappers); err != nil {
 		return
