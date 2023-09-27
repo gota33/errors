@@ -13,6 +13,7 @@ var (
 	As     = errors.As
 	Is     = errors.Is
 	Unwrap = errors.Unwrap
+	Join   = errors.Join
 )
 
 type Modifier interface {
